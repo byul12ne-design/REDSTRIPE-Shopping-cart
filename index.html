@@ -1,19 +1,301 @@
-<script>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>전문 트롤리 구성기</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* CSS는 기존 원본과 동일하게 유지 */
+        :root {
+            --primary: #f5f5f5;
+            --primary-light: #e0e0e0;
+            --secondary: #ffffff;
+            --accent: #e30613;
+            --accent-dark: #c00511;
+            --drawer-border: #d1d7dc;
+            --background: #ffffff;
+            --text: #333333;
+            --text-light: #666666;
+            --border: #cccccc;
+            --success: #28a745;
+            --premium: #e30613;
+            --premium-dark: #c00511;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 20px; background-color: var(--background); color: var(--text); line-height: 1.5; position: relative; height: 100vh; overflow: hidden; box-sizing: border-box; }
+        .configurator-container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; border: 1px solid var(--border); height: calc(100vh - 40px); display: flex; flex-direction: column; }
+        .config-header { background-color: var(--primary); color: var(--text); padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; position: relative; border-bottom: 1px solid var(--border); }
+        .config-header h1 { font-size: 24px; font-weight: 600; margin: 0; }
+        .header-actions { display: flex; gap: 15px; margin-right: 150px; }
+        .status-message { color: var(--accent) !important; font-weight: 600; margin: 12px 0; padding: 8px; border-radius: 4px; transition: all 0.3s ease; }
+        .config-main { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 180px); min-height: 600px; overflow: hidden; gap: 0; }
+        .left-split { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        .left-content { flex: 1; overflow-y: auto; padding: 25px; display: flex; flex-direction: column; gap: 20px; }
+        .section-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .model-selector { display: flex; gap: 15px; margin-bottom: 15px; }
+        .model-btn { padding: 15px; background-color: white; border: 2px solid var(--border); border-radius: 4px; cursor: pointer; text-align: center; font-weight: 600; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .model-btn.selected { background-color: var(--accent); color: white; border-color: var(--accent-dark); }
+        .model-size { padding: 15px 30px; margin-top: 10px; font-size: 18px; border-radius: 6px; background-color: white; border: 1px solid var(--border); cursor: pointer; }
+        .model-size.clicked { background-color: #b0b0b0; color: white; }
+        .drawer-count-selector { display: flex; gap: 10px; margin-bottom: 15px; }
+        .drawer-count-btn { padding: 8px 15px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-weight: 500; }
+        .drawer-count-btn.selected { background-color: var(--accent); color: white; }
+        .drawer-selector { display: flex; gap: 3px; margin-bottom: 25px; flex-wrap: wrap; }
+        .drawer-btn { padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-weight: 500; min-width: 40px; text-align: center; }
+        .drawer-btn.selected { background-color: var(--accent); color: white; }
+        .trolley-preview { background-color: var(--secondary); border-radius: 6px; padding: 20px; margin-bottom: 20px; flex-grow: 1; display: flex; flex-direction: column; border: 1px solid var(--border); }
+        .trolley-frame { background-color: #f5f5f5; border-radius: 6px; height: 100%; position: relative; box-shadow: inset 0 0 10px rgba(0,0,0,0.05); flex-grow: 1; display: flex; flex-direction: column; }
+        .drawer-container { flex-grow: 1; display: flex; flex-direction: column; position: relative; }
+        .drawer-title { font-size: 16px; font-weight: 600; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .drawer-area { flex-grow: 1; background-color: #f5f5f5; border-radius: 4px; display: flex; flex-wrap: wrap; align-content: flex-start; padding: 10px; gap: 10px; overflow-y: auto; }
+        .inlay-item { border: 1px dashed var(--drawer-border); display: flex; flex-direction: column; justify-content: space-between; align-items: center; font-size: 10px; text-align: center; position: relative; padding: 8px; border-radius: 4px; overflow: hidden; background-color: #f8f9fa; cursor: pointer; transition: all 0.2s ease; }
+        .inlay-item:hover { transform: scale(1.02); border-color: var(--accent); }
+        .inlay-item:hover::after { content: '×'; position: absolute; right: 4px; top: 4px; color: var(--accent); font-weight: bold; font-size: 12px; cursor: pointer; background: white; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .inlay-item.■ { width: calc(25% - 10px); height: 200px; }
+        .inlay-item.■■ { width: calc(50% - 10px); height: 200px; }
+        .inlay-item.■■■ { width: calc(75% - 10px); height: 200px; }
+        .inlay-item.■■■■ { width: calc(100% - 10px); height: 200px; }
+        .inlay-item-img { width: 100%; height: 100px; background-size: contain; background-repeat: no-repeat; background-position: center; margin-bottom: 4px; }
+        .inlay-item-artno { font-weight: 700; color: var(--text); font-size: 9px; }
+        .inlay-section { padding: 25px; display: flex; flex-direction: column; overflow-y: auto; }
+        .inlay-categories { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-wrap: wrap; }
+        .category-btn { padding: 8px 15px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .category-btn.selected { background-color: var(--primary); border-color: var(--text-light); }
+        .inlay-search { margin-bottom: 20px; position: relative; }
+        .search-input { width: 100%; padding: 10px 15px; border: 1px solid var(--border); border-radius: 4px; padding-left: 40px; }
+        .inlay-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; }
+        .inlay-card { border: 1px solid var(--border); border-radius: 6px; padding: 10px; background: white; cursor: pointer; position: relative; }
+        .inlay-card:hover { border-color: var(--text-light); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .inlay-card-img { height: 100px; background-size: contain; background-repeat: no-repeat; background-position: center; }
+        .inlay-card-artno { font-weight: 700; margin-top: 10px; font-size: 12px; }
+        .inlay-add-btn { width: 100%; margin-top: 10px; background-color: var(--accent); color: white; border: none; border-radius: 4px; padding: 6px; cursor: pointer; }
+        .btn { padding: 12px 20px; border-radius: 4px; font-weight: 600; cursor: pointer; border: none; font-size: 14px; }
+        .btn-primary { background-color: var(--accent); color: white; }
+        .btn-secondary { background-color: white; color: var(--text); border: 1px solid var(--border); }
+        .action-buttons { display: flex; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+    </style>
+</head>
+<body>
+    <div class="configurator-container" id="configurator">
+        <div class="config-header">
+            <h1>트롤리 구성기</h1>
+            <div class="header-actions">
+                <button class="btn btn-secondary" id="reset-btn">↻ 초기화</button>
+                <button class="btn btn-primary" id="export-pdf">↓ PDF 내보내기</button>
+            </div>
+        </div>
+        
+        <div class="config-main">
+            <div class="split left-split">
+                <div class="left-content">
+                    <div class="section-title">트롤리 유형 선택</div>
+                    <div class="model-selector">
+                        <div class="model-btn selected" data-model="standard" data-drawers="5">
+                            STANDARD
+                            <div>
+                                <button class="model-size" data-size="8.4">8.4</button>
+                                <button class="model-size" data-size="8.8">8.8</button>
+                            </div>
+                        </div>
+                        <div class="model-btn premium" data-model="premium" data-drawers="7">
+                            PLUS
+                            <div>
+                                <button class="model-size" data-size="8.4">8.4</button>
+                                <button class="model-size" data-size="8.8">8.8</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="dimensions-display">서랍 크기: 462 mm x 335 mm</div>
+                    <div class="section-title">서랍 구성</div>
+                    <div class="drawer-count-selector">
+                        <div class="drawer-count-btn selected" data-count="5">5개 서랍</div>
+                        <div class="drawer-count-btn" data-count="7">7개 서랍</div>
+                    </div>
+                    
+                    <div class="drawer-selector" id="drawer-selector"></div>
+                    <div class="status-message" id="status-message">구성 준비 완료</div>
+                    
+                    <div class="trolley-preview">
+                        <div class="trolley-frame" id="trolley-frame" data-size="8.4">
+                            <div class="drawer-title">
+                                <span>서랍 <span id="current-drawer-number">1</span> / <span id="total-drawers">5</span></span>
+                            </div>
+                            <div class="drawer-container">
+                                <div class="drawer-area" id="drawer-area"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" id="prev-drawer" disabled>← 이전 서랍</button>
+                        <button class="btn btn-secondary" id="next-drawer">다음 서랍 →</button>
+                    </div>
+                </div>
+            </div> 
+            
+            <div class="inlay-section">
+                <div class="section-title">인레이 선택 (데이터 연동됨)</div>
+                <div class="inlay-categories">
+                    <div class="category-btn selected" data-category="all">전체 항목</div>
+                    <div class="category-btn" data-category="■">■</div>
+                    <div class="category-btn" data-category="■■">■■</div>
+                    <div class="category-btn" data-category="■■■">■■■</div>
+                    <div class="category-btn" data-category="■■■■">■■■■</div>
+                </div>
+                <div class="inlay-search">
+                    <input type="text" class="search-input" placeholder="인레이 검색...">
+                </div>
+                <div class="inlay-grid" id="inlay-grid">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // 기본 설정 객체 (inlays 배열은 비워둡니다)
             const config = {
                 model: 'standard',
                 drawerCount: 5,
                 currentDrawer: 1,
                 selectedInlay: null,
                 drawers: [],
-                inlays: [] // 일단 배열을 텅 비워둡니다.
+                inlays: [] 
             };
 
-            // 새로 추가하는 부분: data.json에서 데이터를 불러옵니다!
+            const drawerArea = document.getElementById('drawer-area');
+            const drawerSelector = document.getElementById('drawer-selector');
+            const inlayGrid = document.getElementById('inlay-grid');
+            
+            // 서랍 초기화 세팅
+            for (let i = 1; i <= 7; i++) {
+                config.drawers.push({ number: i, inlays: [], widthUsed: 0 });
+            }
+            createDrawerButtons(5);
+
+            // ★ 핵심: data.json 파일에서 데이터를 불러오는 Fetch 로직 ★
             fetch('data.json')
-                .then(response => response.json())
-                .then(data => {
-                    config.inlays = data; // 불러온 데이터를 빈 배열에 채워 넣습니다.
-                    renderInlays(); // 화면을 다시 그립니다.
+                .then(response => {
+                    if (!response.ok) throw new Error("데이터를 찾을 수 없습니다.");
+                    return response.json();
                 })
-                .catch(error => console.error('데이터 로드 에러:', error));
+                .then(data => {
+                    config.inlays = data; // 불러온 데이터를 config.inlays에 넣음
+                    renderInlays(); // 데이터를 바탕으로 화면에 리스트를 그림
+                })
+                .catch(error => {
+                    console.error('오류:', error);
+                    inlayGrid.innerHTML = `<p style="color:red; padding:20px;">데이터 연동 실패: data.json 파일을 확인해주세요.</p>`;
+                });
+
+            // 화면에 제품 리스트를 그려주는 함수
+            function renderInlays(filter = 'all', searchTerm = '') {
+                inlayGrid.innerHTML = '';
+                const filteredInlays = config.inlays.filter(inlay => {
+                    const matchesCategory = filter === 'all' || inlay.category === filter;
+                    const matchesSearch = searchTerm === '' || inlay.artno.toLowerCase().includes(searchTerm) || (inlay.description && inlay.description.toLowerCase().includes(searchTerm));
+                    return matchesCategory && matchesSearch;
+                });
+                
+                filteredInlays.forEach(inlay => {
+                    const el = document.createElement('div');
+                    el.className = 'inlay-card';
+                    el.innerHTML = `
+                        <div class="inlay-card-img" style="background-image: url('${inlay.img}')"></div>
+                        <div class="inlay-card-artno">${inlay.artno}</div>
+                        <div style="font-size:11px; color:#666;">${inlay.description}</div>
+                        <div style="font-size:10px; color:#999; margin-top:5px;">크기: ${inlay.size}</div>
+                        <button class="inlay-add-btn">서랍에 추가</button>
+                    `;
+                    el.querySelector('.inlay-add-btn').addEventListener('click', () => {
+                        addInlayToDrawer(inlay);
+                    });
+                    inlayGrid.appendChild(el);
+                });
+            }
+
+            // 서랍에 인레이 추가하는 함수
+            function addInlayToDrawer(inlay) {
+                const drawer = config.drawers[config.currentDrawer - 1];
+                let sizeValue = 0;
+                if(inlay.size === '■') sizeValue = 0.25;
+                if(inlay.size === '■■') sizeValue = 0.5;
+                if(inlay.size === '■■■') sizeValue = 0.75;
+                if(inlay.size === '■■■■') sizeValue = 1;
+
+                if (drawer.widthUsed + sizeValue > 1.01) {
+                    alert("서랍에 공간이 부족합니다.");
+                    return;
+                }
+                drawer.inlays.push(inlay);
+                drawer.widthUsed += sizeValue;
+                updateDrawerDisplay();
+            }
+
+            // 서랍 화면 업데이트
+            function updateDrawerDisplay() {
+                drawerArea.innerHTML = '';
+                const drawer = config.drawers[config.currentDrawer - 1];
+                document.getElementById('current-drawer-number').textContent = config.currentDrawer;
+                document.getElementById('total-drawers').textContent = config.drawerCount;
+                
+                drawer.inlays.forEach((inlay, index) => {
+                    const el = document.createElement('div');
+                    el.className = `inlay-item ${inlay.size}`;
+                    el.innerHTML = `
+                        <div class="inlay-item-img" style="background-image: url('${inlay.img}')"></div>
+                        <div class="inlay-item-artno">${inlay.artno}</div>
+                    `;
+                    el.addEventListener('click', () => {
+                        // 삭제 로직
+                        drawer.inlays.splice(index, 1);
+                        let sizeValue = 0;
+                        if(inlay.size === '■') sizeValue = 0.25;
+                        if(inlay.size === '■■') sizeValue = 0.5;
+                        if(inlay.size === '■■■') sizeValue = 0.75;
+                        if(inlay.size === '■■■■') sizeValue = 1;
+                        drawer.widthUsed -= sizeValue;
+                        updateDrawerDisplay();
+                    });
+                    drawerArea.appendChild(el);
+                });
+            }
+
+            // 하단 서랍 버튼 생성
+            function createDrawerButtons(count) {
+                drawerSelector.innerHTML = '';
+                for (let i = 1; i <= count; i++) {
+                    const btn = document.createElement('div');
+                    btn.className = `drawer-btn ${i === 1 ? 'selected' : ''}`;
+                    btn.textContent = i;
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.drawer-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        config.currentDrawer = i;
+                        updateDrawerDisplay();
+                    });
+                    drawerSelector.appendChild(btn);
+                }
+            }
+
+            // 카테고리 필터링 이벤트
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                    renderInlays(this.dataset.category, document.querySelector('.search-input').value.toLowerCase());
+                });
+            });
+
+            // 검색 이벤트
+            document.querySelector('.search-input').addEventListener('input', function() {
+                const category = document.querySelector('.category-btn.selected').dataset.category;
+                renderInlays(category, this.value.toLowerCase());
+            });
+        });
+    </script>
+</body>
+</html>
