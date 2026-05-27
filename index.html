@@ -1,16 +1,19 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>뷔르트 트롤리 구성기</title>
-    <link rel="stylesheet" href="style.css"> </head>
-<body>
-    <div class="container">
-        <h1>뷔르트 트롤리 구성기 (테스트)</h1>
-        <div id="product-list">
-            </div>
-    </div>
+<script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const config = {
+                model: 'standard',
+                drawerCount: 5,
+                currentDrawer: 1,
+                selectedInlay: null,
+                drawers: [],
+                inlays: [] // 일단 배열을 텅 비워둡니다.
+            };
 
-    <script src="app.js"></script> </body>
-</html>
+            // 새로 추가하는 부분: data.json에서 데이터를 불러옵니다!
+            fetch('data.json')
+                .then(response => response.json())
+                .then(data => {
+                    config.inlays = data; // 불러온 데이터를 빈 배열에 채워 넣습니다.
+                    renderInlays(); // 화면을 다시 그립니다.
+                })
+                .catch(error => console.error('데이터 로드 에러:', error));
